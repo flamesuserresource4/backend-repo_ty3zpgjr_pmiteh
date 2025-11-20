@@ -1,48 +1,72 @@
 """
-Database Schemas
+Database Schemas for Community Savings
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
-
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+Each Pydantic model represents a MongoDB collection.
+Collection name is the lowercase of the class name.
 """
+from typing import Optional, List
+from pydantic import BaseModel, Field, EmailStr, ConfigDict
+from datetime import datetime
 
-from pydantic import BaseModel, Field
-from typing import Optional
-
-# Example schemas (replace with your own):
 
 class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
-    name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+    model_config = ConfigDict(extra='ignore')
+    full_name: str
+    email: EmailStr
+    password_hash: str
+    password_salt: str
+    role: str = Field('member', description="'member' or 'admin'")
+    avatar_url: Optional[str] = None
+    is_active: bool = True
 
-class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
 
-# Add your own schemas here:
-# --------------------------------------------------
+class Session(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+    user_id: str
+    token: str
+    created_at: datetime
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+
+class Deposit(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+    user_id: str
+    amount: float = Field(..., ge=0)
+    status: str = Field('pending', description="pending|approved|rejected")
+    proof_path: Optional[str] = None
+    note: Optional[str] = None
+
+
+class Loan(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+    user_id: str
+    amount: float = Field(..., gt=0)
+    interest_rate: float = Field(..., gt=0)
+    interest_amount: float = Field(..., ge=0)
+    total_payable: float = Field(..., ge=0)
+    status: str = Field('pending', description="pending|approved|rejected|repaid")
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+
+
+class Message(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+    sender_id: str
+    receiver_id: str
+    content: str
+    sent_at: datetime
+
+
+class AuditLog(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+    actor_id: Optional[str] = None
+    action: str
+    details: dict = Field(default_factory=dict)
+    created_at: datetime
+    level: str = Field('info', description="info|warning|error|security")
+
+
+class Settings(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+    interest_base: float = 0.10  # 10% up to 100 RWF
+    interest_high: float = 0.20  # 20% above 100 RWF
+    max_active_loans_members: int = 30
